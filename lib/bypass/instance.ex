@@ -29,7 +29,7 @@ defmodule Bypass.Instance do
     # Get a free port from the OS
     case :ranch_tcp.listen(ip: @listen_ip, port: Keyword.get(opts, :port, 0)) do
       {:ok, _socket} ->
-        # {:ok, port} = :inet.port(socket)
+        {:ok, port} = :inet.port(socket)
         # :erlang.port_close(socket)
 
         ref = make_ref()
@@ -37,7 +37,7 @@ defmodule Bypass.Instance do
 
         state = %{
           expectations: %{},
-          # port: port,
+          port: port,
           ref: ref,
           # socket: socket,
           callers_awaiting_down: [],
