@@ -35,8 +35,6 @@ defmodule Bypass.Instance do
         ref = make_ref()
         # socket = do_up(port, ref)
 
-        puts "IN HERE"
-
         state = %{
           expectations: %{},
           # port: port,
