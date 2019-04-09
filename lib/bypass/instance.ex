@@ -28,7 +28,7 @@ defmodule Bypass.Instance do
   def init([opts]) do
     # Get a free port from the OS
     case :ranch_tcp.listen(ip: @listen_ip, port: Keyword.get(opts, :port, 0)) do
-      {:ok, socket} ->
+      {:ok, _socket} ->
         # {:ok, port} = :inet.port(socket)
         # :erlang.port_close(socket)
 
