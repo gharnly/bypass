@@ -33,13 +33,13 @@ defmodule Bypass.Instance do
         :erlang.port_close(socket)
 
         ref = make_ref()
-        # socket = do_up(port, ref)
+        current_socket = do_up(port, ref)
 
         state = %{
           expectations: %{},
           port: port,
           ref: ref,
-          # socket: socket,
+          current_socket: current_socket,
           callers_awaiting_down: [],
           callers_awaiting_exit: [],
           pass: false,
@@ -81,24 +81,24 @@ defmodule Bypass.Instance do
     {:reply, port, state}
   end
 
-  defp do_handle_call(:up, _from, %{port: port, ref: ref, socket: nil} = state) do
+  defp do_handle_call(:up, _from, %{port: port, ref: ref, current_socket: nil} = state) do
     socket = do_up(port, ref)
-    {:reply, :ok, %{state | socket: socket}}
+    {:reply, :ok, %{state | current_socket: socket}}
   end
   defp do_handle_call(:up, _from, state) do
     {:reply, {:error, :already_up}, state}
   end
 
-  defp do_handle_call(:down, _from, %{socket: nil} = state) do
+  defp do_handle_call(:down, _from, %{current_socket: nil} = state) do
     {:reply, {:error, :already_down}, state}
   end
-  defp do_handle_call(:down, from, %{socket: socket, ref: ref, callers_awaiting_down: callers_awaiting_down} = state) when not is_nil(socket) do
+  defp do_handle_call(:down, from, %{current_socket: socket, ref: ref, callers_awaiting_down: callers_awaiting_down} = state) when not is_nil(socket) do
     if retained_plugs_count(state) > 0 do
       # wait for plugs to finish
       {:noreply, %{state | callers_awaiting_down: [from | callers_awaiting_down]}}
     else
       do_down(ref, socket)
-      {:reply, :ok, %{state | socket: nil}}
+      {:reply, :ok, %{state | current_socket: nil}}
     end
   end
 
@@ -187,10 +187,10 @@ defmodule Bypass.Instance do
   defp do_exit(state) do
     updated_state =
       case state do
-        %{socket: nil} -> state
-        %{socket: socket, ref: ref} ->
+        %{current_socket: nil} -> state
+        %{current_socket: socket, ref: ref} ->
           do_down(ref, socket)
-          %{state | socket: nil}
+          %{state | current_socket: nil}
       end
 
     result =
@@ -282,14 +282,14 @@ defmodule Bypass.Instance do
   end
 
   defp dispatch_awaiting_callers(%{callers_awaiting_down: down_callers,
-    callers_awaiting_exit: exit_callers, socket: socket, ref: ref} = state) do
+    callers_awaiting_exit: exit_callers, current_socket: socket, ref: ref} = state) do
 
     if retained_plugs_count(state) == 0 do
       down_reset =
         if length(down_callers) > 0 do
           do_down(ref, socket)
           Enum.each(down_callers, &(GenServer.reply(&1, :ok)))
-          %{state | socket: nil, callers_awaiting_down: []}
+          %{state | current_socket: nil, callers_awaiting_down: []}
         end
 
       if length(exit_callers) > 0 do
